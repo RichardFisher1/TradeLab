@@ -11,14 +11,21 @@ class ChartsApp:
 
     def create_context(self):
         dpg.create_context()
-        dpg.create_viewport(title='TradeLab_Charts', width=600, height=200)
         self.create_menus()
+        dpg.enable_docking(dock_space=True)
+
+        dpg.configure_app(init_file="dpg.ini")
+
+        self.create_chart_window(None, None, '5min')
+        self.create_chart_window(None, None, '1min')
+        
         self.create_controls_window()
+        
 
     def create_menus(self):
         with dpg.viewport_menu_bar():
             with dpg.menu(label="File"):
-                dpg.add_menu_item(label="save workspace as", callback=self.save_workspace)
+                dpg.add_menu_item(label="save workspace", callback=self.save_workspace)
             with dpg.menu(label="New_Chart"):
                 for timeframe in self.timeframes:
                     dpg.add_menu_item(label=timeframe, callback=self.create_chart_window, user_data=timeframe)
@@ -62,10 +69,10 @@ class ChartsApp:
         print(app_data)
 
     def save_workspace(self):
-        # Implement saving workspace logic here
-        print("Workspace saved.")
+        dpg.save_init_file("dpg.ini")
 
     def run(self):
+        dpg.create_viewport(title='TradeLab_Charts', width=600, height=200)
         dpg.setup_dearpygui()
         dpg.show_viewport()
         dpg.start_dearpygui()
@@ -91,6 +98,5 @@ if __name__ == "__main__":
     
     app = ChartsApp(data)
     app.run()
-
 
 
