@@ -12,6 +12,7 @@ class ChartsApp:
         self.create_context()
         self.window_counter = 0
         self.tags = {}
+        self.backtest_switch = False
 
     def create_context(self):
         dpg.create_context()
@@ -27,7 +28,7 @@ class ChartsApp:
                 for timeframe in self.timeframes:
                     dpg.add_menu_item(label=timeframe, callback=self.create_chart_window, user_data=timeframe)
             with dpg.menu(label="Backtest"):
-                dpg.add_radio_button(("None", "strat_1", "strat_2"), callback=self.run_backtest, horizontal=False)
+                dpg.add_radio_button(("None", "strat_1", "strat_2"), callback=self.backtest_switch, horizontal=False)
 
     def create_controls_window(self):
         with dpg.window(label="Controls", no_close=True, collapsed=True):
@@ -83,17 +84,19 @@ class ChartsApp:
         if previous_time != new_time:
             #update candelsticks 
             ...
-        
-    def run_backtest(self, sender, app_data):
+    def backtest_switch(self, sender, app_data):
+        ...
+
+    def run_backtest(self, switch):
         # Implement backtest logic here
-        print("Backtest running for strategy:", app_data)
+        print("Backtest running for strategy:", switch)
 
     def _indicator(self, sender, app_data, timeframe):
         print(sender, app_data, timeframe)
-        print(timeframe[1])
+        # print(timeframe[1])
 
-        constant_list = [39000 for _ in range(len(self.price_iterator.data[timeframe[0]].index.tolist()))]
-        dpg.add_line_series(self.price_iterator.data[timeframe[0]].index.tolist(), constant_list, label="0.5 + 0.5 * sin(x)", parent=timeframe[1])
+        # constant_list = [39000 for _ in range(len(self.price_iterator.data[timeframe[0]].index.tolist()))]
+        # dpg.add_line_series(self.price_iterator.data[timeframe[0]].index.tolist(), constant_list, label="0.5 + 0.5 * sin(x)", parent=timeframe[1])
         
 
         
@@ -104,10 +107,9 @@ class ChartsApp:
     def run(self):
         dpg.create_viewport(title='TradeLab_Charts', width=600, height=200)
         dpg.setup_dearpygui()
-        dpg.show_viewport()
-       
+        dpg.show_viewport()       
         while dpg.is_dearpygui_running():
-            print('hi')
+            self.run_backtest(self.backtest_switch)
             dpg.render_dearpygui_frame()
 
         dpg.start_dearpygui()
