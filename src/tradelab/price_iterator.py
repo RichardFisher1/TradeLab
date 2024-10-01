@@ -60,6 +60,15 @@ class PriceIterator:
                 else:
                     self._update_high_low_close(tf, self.simulation_data[self.increment].loc[self.current_indices[self.increment], ['High', 'Low', 'Close']])
     
+    def next_day(self):
+        self.simulation_data = copy.deepcopy(self.data)
+        for timeframe in self.resolutions:
+            n_bars_in_day = self.n_bars_in_day[timeframe]
+            update_current_index = self.current_indices[timeframe] // (n_bars_in_day) * n_bars_in_day + n_bars_in_day
+            self.current_indices[timeframe] = update_current_index
+
+
+
     def _update_high_low_close(self, tf, new_price):
         current_index = self.current_indices[tf]
         self.simulation_data[tf].loc[current_index, 'High'] = max(new_price['High'], self.simulation_data[tf].loc[current_index, 'High'])
