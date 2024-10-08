@@ -5,6 +5,8 @@ from utils.helper_functions import get_class_names_from_file, import_class_from_
 import numpy as np
 import os
 
+import importlib.util
+import os
 
 
 class ChartsApp:
@@ -14,6 +16,8 @@ class ChartsApp:
         self.create_context()
         self.window_counter = 0
         self.tags = {}
+        self.indicators = {}
+
         self.backtest_switch = False
         self.start_switch = False
 
@@ -52,7 +56,7 @@ class ChartsApp:
         y_axis_tag = f'y-axis_{self.window_counter}'
         candle_series_tag = f'candle_series_{self.window_counter}'
         view_format = 'Daily View'
-        menu_indicators = 'menu_indicators'
+        menu_indicators = f'menu_indicators_{self.window_counter}'
         
         self.tags[window_tag] = {'plot': plot_tag, 
                                  'timeframe': timeframe,
@@ -65,7 +69,7 @@ class ChartsApp:
         with dpg.window(label=timeframe, width=400, height=400, tag=window_tag):
             with dpg.menu_bar():
                 with dpg.menu(label="Indicators", tag=menu_indicators):
-                    dpg.add_checkbox(label="checkbox", callback=self._indicator, user_data=self.tags[window_tag], tag='checkbox')
+                    dpg.add_checkbox(label="checkbox", callback=self._indicator, user_data=self.tags[window_tag])
                     dpg.add_checkbox(label="e", callback=self._indicator)
                 with dpg.menu(label="Veiw"):
                     dpg.add_radio_button(("Free View", "Daily View", "Custom View2"), default_value='Daily View', callback=self.update_view, user_data=self.tags[window_tag])
@@ -92,12 +96,13 @@ class ChartsApp:
         timeframe = window_tags['timeframe']
 
         if view == 'Free View':
-            pass
+            dpg.set_axis_limits_auto(x_axis_tag)
+            dpg.set_axis_limits_auto(y_axis_tag)
         elif view == 'Daily View':
             xmin, xmax, ymin, ymax = v1(self.price_iterator, timeframe)
             dpg.set_axis_limits(x_axis_tag, xmin, xmax)
             dpg.set_axis_limits(y_axis_tag, ymin, ymax)
-        
+                  
     def update_candel_series(self):        
         for _, window_items in self.tags.items():
             timeframe = window_items['timeframe']
@@ -158,10 +163,8 @@ class ChartsApp:
     def save_workspace(self):
         dpg.save_init_file("dpg.ini")
 
-    def update_view(self):
-        ...
-
-
+    def update_view(self, sender, app_data, window_tags):
+        window_tags['view'] = app_data
 
     def get_file_modification_time(self, file_path):
         """Get the last modified time of the specified file."""
@@ -177,12 +180,17 @@ class ChartsApp:
     def update_stored_indicators(self):
         file_path = "workspace/my_indicators.py"
         class_names = get_class_names_from_file(file_path)
+
+        module_name = os.path.splitext(os.path.basename(file_path))[0]
+        spec = importlib.util.spec_from_file_location(module_name, file_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
         for class_name in class_names:
-            import_class_from_file(class_name, file_path)
-
-        print(mav)
-
-
+            cls = getattr(module, class_name)  # Get the class from the module
+            instance = cls(self.price_iterator)  # Initialize the class (assuming no constructor arguments)
+            self.indicators[class_name] = instance
+        
     def run(self):
         dpg.create_viewport(title='TradeLab_Charts', width=600, height=200)
         dpg.setup_dearpygui()

@@ -6,7 +6,12 @@ from datetime import timedelta
 current_dir = os.path.dirname(os.path.abspath(__file__))
 rd = os.path.dirname(os.path.dirname(current_dir))
 
-def import_data(dates, times, market, resolutions):
+def import_data(market_config):
+    dates = market_config['date_range']
+    times = market_config['time_range']
+    market = market_config['market']
+    resolutions = market_config['timeframes']
+
     data = {tf: pd.DataFrame({}) for tf in resolutions}
 
     start_time_dates = pd.date_range(start=dates[0] + ' ' + times[0], end=dates[1] + ' ' + times[0], freq='B')

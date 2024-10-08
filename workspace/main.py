@@ -10,13 +10,8 @@ market_config = {
 }
 
 # Load market data
-date_bounds = market_config['date_range']
-time_bounds = market_config['time_range']
-market = market_config['market']
-timeframes = market_config['timeframes']
-data = import_data(date_bounds, time_bounds, market, timeframes)
+data = import_data(market_config)
 
+# Run
 app = ChartsApp(data)
 app.run()
-
-
