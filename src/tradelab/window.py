@@ -57,12 +57,11 @@ class Window:
 
 
     def update_checked_indicators(self, sender, app_data, user_data):
-        print(sender, app_data, )
+        #print(sender, app_data, )
+        ...
 
 
     def update_indicator_menu(self):
-
-        print(self.indicators)
         # Clear existing items in the indicators menu
         children = dpg.get_item_children(self.menu_indicators_tag)
         if children:

@@ -30,7 +30,7 @@ class my_ind_1(ValueBasedIndicators):
         upper_bound = self.high('5min', 0)     
         return lower_bound, upper_bound
     
-class my_ind_4(FunctionBasedIndicators):
+class my_ind_5(FunctionBasedIndicators):
     def __init__(self, data_iterator):
         super().__init__(data_iterator)
         self.period = 2
