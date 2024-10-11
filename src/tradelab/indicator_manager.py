@@ -13,6 +13,8 @@ class IndicatorManager:
         self.indicators = {}
         self.update_stored_indicators()
 
+        self.checked_indicators = {}
+
     def get_file_modification_time(self, file_path):
         """Get the last modified time of the specified file."""
         return os.path.getmtime(file_path)
@@ -52,5 +54,17 @@ class IndicatorManager:
             # recheck previous turn on indicators
 
     def update_checked_indicators(self, sender, app_data, user_data):
-        print(sender, app_data)
-        ...
+        print(sender, app_data, user_data)
+        indicator, window_tag = user_data
+        if app_data == True:
+            if self.checked_indicators.get(window_tag):
+                self.checked_indicators[window_tag][indicator] = None
+            else:
+                self.checked_indicators[window_tag] = {indicator:None}
+        else:
+            del self.checked_indicators[window_tag][indicator]
+            # Optionally, remove the window_tag if no indicators are left
+            if not self.checked_indicators[window_tag]:
+                del self.checked_indicators[window_tag]
+
+        print(self.checked_indicators)
