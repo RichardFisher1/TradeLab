@@ -1,27 +1,28 @@
 import dearpygui.dearpygui as dpg
 from tradelab.price_iterator import PriceIterator
+from tradelab.indicator_manager import IndicatorManager
 from utils.helper_functions import get_class_names_from_file
 from tradelab.window import Window
 import importlib.util
 import os
+import time
+
 
 
 class ChartsApp:
     def __init__(self, data):
         self.file_path = "workspace/my_indicators.py"
-        self.last_modified_time = None
-
-        self.price_iterator = PriceIterator(data)
-        self.indicators = {}
-
-        self.create_context()
         self.window_counter = 0
         self.windows = {}
-        self.update_stored_indicators()
-
+        
+        self.price_iterator = PriceIterator(data)
+        self.indicator_manager = IndicatorManager(self.file_path, self.windows, self.price_iterator)
+        
         self.backtest_switch = False
         self.start_switch = False
 
+        self.create_context()
+      
     ### ---------- CREATE GUI COMPONENTS - MENUS & WINDOWS ---------- ###
 
     def create_context(self):
@@ -51,7 +52,7 @@ class ChartsApp:
 
     def create_chart_window(self, sender, app_data, timeframe):
         window_tag = f'window_{self.window_counter}'
-        self.windows[window_tag] = Window(self.window_counter, timeframe, self.price_iterator, self.indicators)
+        self.windows[window_tag] = Window(self.window_counter, timeframe, self.price_iterator, self.indicator_manager)
         self.window_counter +=1
     
     def _backtest_switch(self, sender, app_data):
@@ -89,70 +90,28 @@ class ChartsApp:
         for window in self.windows.values():
                 window.update_candle_series()
 
-    
-
-
-
-
-    def update_checked_indicators(self, sender, app_data, user_data):
-        #print(sender, app_data, )
-        indicator, window_tag = user_data
-        # print(timeframe[1])
-
-        # constant_list = [39000 for _ in range(len(self.price_iterator.data[timeframe[0]].index.tolist()))]
-        # dpg.add_line_series(self.price_iterator.data[timeframe[0]].index.tolist(), constant_list, label="0.5 + 0.5 * sin(x)", parent=timeframe[1])
- 
-    def get_file_modification_time(self, file_path):
-        """Get the last modified time of the specified file."""
-        return os.path.getmtime(file_path)
-    
-    def update_stored_indicators(self):
-
-        current_modified_time = self.get_file_modification_time(self.file_path)
-        if current_modified_time != self.last_modified_time:
-            self.last_modified_time = current_modified_time
-            file_path = "workspace/my_indicators.py"
-            class_names = get_class_names_from_file(file_path)
-            module_name = os.path.splitext(os.path.basename(file_path))[0]
-            spec = importlib.util.spec_from_file_location(module_name, file_path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-
-            keys_to_remove = [key for key in self.indicators if key not in class_names]
-            for key in keys_to_remove:
-                del self.indicators[key]
-
-            for class_name in class_names:
-                if class_name not in self.indicators:
-                    cls = getattr(module, class_name)  #
-                    instance = cls(self.price_iterator)  
-                    self.indicators[class_name] = instance
-
-            ordered_indicators = {name: self.indicators[name] for name in class_names if name in self.indicators}
-            self.indicators.clear()
-            self.indicators.update(ordered_indicators)
-
-            for window in self.windows.values():
-                window.update_indicator_menu()
-
-            # remove linseries or drawing of removed indicators  
-            # recheck previous turn on indicators
-                
+    ### -------- MAIN FLOW ------------------ ###
+               
     def run(self):
         dpg.create_viewport(title='TradeLab_Charts', width=600, height=200)
         dpg.setup_dearpygui()
         dpg.show_viewport()       
         while dpg.is_dearpygui_running():
-            self.update_stored_indicators()
             
-
+            self.indicator_manager.update_stored_indicators()
+            
             if self.start_switch is True:
                 self.next_iteration()
 
             for window in self.windows.values():
                 window.update_axis_limits()
+            
+            
+
 
             dpg.render_dearpygui_frame()
+
+            
 
         dpg.start_dearpygui()
         dpg.destroy_context()

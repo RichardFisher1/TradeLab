@@ -1,7 +1,7 @@
 import dearpygui.dearpygui as dpg
 
 class Window:
-    def __init__(self, window_counter, timeframe, price_iterator, indicators):
+    def __init__(self, window_counter, timeframe, price_iterator, indicators_manager):
         self.window_tag = f'window_{window_counter}'
         self.timeframe = timeframe
         self.price_iterator = price_iterator
@@ -11,7 +11,8 @@ class Window:
         self.y_axis_tag = f'y-axis_{window_counter}'
         self.menu_indicators_tag = f'menu_indicators_{window_counter}'
         self.candle_series_tag = f'candle_series_{window_counter}'
-        self.indicators = indicators
+        self.indicators_manager = indicators_manager
+        self.indicators = self.indicators_manager.indicators
 
         with dpg.window(label=timeframe, width=400, height=400, tag=self.window_tag):
             with dpg.menu_bar():
@@ -56,23 +57,19 @@ class Window:
         )
 
 
-    def update_checked_indicators(self, sender, app_data, user_data):
-        #print(sender, app_data, )
-        ...
-
-
     def update_indicator_menu(self):
-        # Clear existing items in the indicators menu
+        # # Clear existing items in the indicators menu
         children = dpg.get_item_children(self.menu_indicators_tag)
         if children:
             for child in children[1]:
                 dpg.delete_item(child)
 
+       
         # Add new checkboxes for each key in self.indicators
         for indicator in self.indicators:
-            dpg.add_checkbox(label=indicator, callback=self.update_checked_indicators, 
+            dpg.add_checkbox(label=indicator, callback=self.indicators_manager.update_checked_indicators, 
                             user_data=[indicator, self.window_tag], parent=self.menu_indicators_tag)
-
+    
 
     def _update_view_mode(self, _, app_data):
         self.view_mode = app_data
