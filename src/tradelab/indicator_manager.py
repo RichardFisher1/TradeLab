@@ -2,24 +2,25 @@ import os
 from utils.helper_functions import get_class_names_from_file
 import importlib.util
 import dearpygui.dearpygui as dpg
+from pprint import pprint
+import importlib
+import sys
 
 
 class IndicatorManager:
-    def __init__(self, file_path, windows, price_iterator):
+    def __init__(self, file_path, price_iterator):
         self.file_path = file_path
-        self.windows = windows
         self.price_iterator = price_iterator
         self.last_modified_time = None
-        self.indicators = {}
-        self.update_stored_indicators()
-
-        self.checked_indicators = {}
+        self.available_indicator = {}
+        self.active_indicators = {}
+        self.update_available_indicators()
 
     def get_file_modification_time(self, file_path):
         """Get the last modified time of the specified file."""
         return os.path.getmtime(file_path)
     
-    def update_stored_indicators(self):
+    def update_available_indicators(self):
 
         current_modified_time = self.get_file_modification_time(self.file_path)
         if current_modified_time != self.last_modified_time:
@@ -31,40 +32,45 @@ class IndicatorManager:
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
 
-            keys_to_remove = [key for key in self.indicators if key not in class_names]
-            for key in keys_to_remove:
-                del self.indicators[key]
-
+            # keys_to_remove = [key for key in self.available_indicator if key not in class_names]
+            # for key in keys_to_remove:
+            #     del self.available_indicator[key]
+            self.available_indicator.clear()
             for class_name in class_names:
-                if class_name not in self.indicators:
-                    cls = getattr(module, class_name)  #
-                    instance = cls(self.price_iterator)  
-                    self.indicators[class_name] = instance
-
-            ordered_indicators = {name: self.indicators[name] for name in class_names if name in self.indicators}
-            self.indicators.clear()
-            self.indicators.update(ordered_indicators)
-
-            for window in self.windows.values():
-                window.update_indicator_menu()
-
-
+                # if class_name not in self.available_indicator:
+                cls = getattr(module, class_name)
+                self.available_indicator[class_name] = cls
             
-            # remove linseries or drawing of removed indicators  
-            # recheck previous turn on indicators
+            ordered_indicators = {name: self.available_indicator[name] for name in class_names if name in self.available_indicator}
+            self.available_indicator.clear()
+            self.available_indicator.update(ordered_indicators)
 
-    def update_checked_indicators(self, sender, app_data, user_data):
-        print(sender, app_data, user_data)
-        indicator, window_tag = user_data
-        if app_data == True:
-            if self.checked_indicators.get(window_tag):
-                self.checked_indicators[window_tag][indicator] = None
-            else:
-                self.checked_indicators[window_tag] = {indicator:None}
+            self.active_indicators.clear()
+
+            return True
+        
+    def create_indicator(self, indicator_name, timeframe):
+        key = (indicator_name, timeframe)
+        if key not in self.active_indicators:
+            cls = self.available_indicator[indicator_name](self.price_iterator, timeframe)            
+            self.active_indicators[key] = {
+                'indicator': cls,
+                'count': 1  
+            }
         else:
-            del self.checked_indicators[window_tag][indicator]
-            # Optionally, remove the window_tag if no indicators are left
-            if not self.checked_indicators[window_tag]:
-                del self.checked_indicators[window_tag]
+            self.active_indicators[key]['count'] += 1
 
-        print(self.checked_indicators)
+    def delete_indicator(self, indicator_name, timeframe):
+        key = (indicator_name, timeframe)
+        if key in self.active_indicators:
+            self.active_indicators[key]['count'] -= 1
+            if self.active_indicators[key]['count'] == 0:
+                del self.active_indicators[key]
+
+    def update_active_indicators(self):
+        for value in self.active_indicators.values():
+            value['indicator'].update()
+
+
+
+        

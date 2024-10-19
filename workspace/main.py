@@ -1,5 +1,7 @@
 from utils.data_import import import_data
 from tradelab.gui import ChartsApp
+import pandas as pd
+
 
 # Market configuration
 market_config = {
@@ -15,3 +17,7 @@ data = import_data(market_config)
 # Run
 app = ChartsApp(data)
 app.run()
+
+
+
+# use cnn to learn pattern for single case - use to signal similar instances. use indicators to focus on particular contexts 

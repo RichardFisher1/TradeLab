@@ -3,9 +3,6 @@ from tradelab.price_iterator import PriceIterator
 from tradelab.indicator_manager import IndicatorManager
 from utils.helper_functions import get_class_names_from_file
 from tradelab.window import Window
-import importlib.util
-import os
-import time
 
 
 
@@ -16,7 +13,7 @@ class ChartsApp:
         self.windows = {}
         
         self.price_iterator = PriceIterator(data)
-        self.indicator_manager = IndicatorManager(self.file_path, self.windows, self.price_iterator)
+        self.indicator_manager = IndicatorManager(self.file_path, self.price_iterator)
         
         self.backtest_switch = False
         self.start_switch = False
@@ -68,9 +65,12 @@ class ChartsApp:
 
     def next_iteration(self):
         self.price_iterator.next()
+        self.indicator_manager.update_active_indicators()
+
         for window in self.windows.values():
-                window.update_candle_series()
-    
+                window.update_candle_serie_plots()
+                window.update_indicator_plots()
+                
     def change_increment(self, sender, timeframe):
         previous_time = self.price_iterator.current_time
         self.price_iterator.change_increment(timeframe)
@@ -98,7 +98,17 @@ class ChartsApp:
         dpg.show_viewport()       
         while dpg.is_dearpygui_running():
             
-            self.indicator_manager.update_stored_indicators()
+            if self.indicator_manager.update_available_indicators():
+                 for window in self.windows.values():
+                    window.update_indicator_menu()  # right now this updates also active indicators and checked_indicators
+                    window.update_indicator_plots()
+            
+
+            # update indicators
+            # update plot indicators 
+
+
+
             
             if self.start_switch is True:
                 self.next_iteration()

@@ -22,7 +22,7 @@ class PriceIterator:
         self.intervals = {'1sec': '1S', '10sec': '10S', '1min': '1min', '5min': '5min', '30min': '30min', '1hour': '1H', 'daily': 'D'}
         self.orders = {tf: i for i, tf in enumerate(self.data.keys())}
         self.resolutions = list(self.data.keys())
-        self.n_bars_in_day = {tf: self.data[tf]['DateTime'].dt.date.value_counts().iloc[0] for tf in self.resolutions}
+        self.n_bars_in_day = {tf: int(self.data[tf]['DateTime'].dt.date.value_counts().iloc[0]) for tf in self.resolutions}
         self.increment = self.resolutions[0]
         self.current_indices = {tf: 0 for tf in self.data}
         self.current_time = self.data[self.increment].loc[self.current_indices[self.increment], 'DateTime']
