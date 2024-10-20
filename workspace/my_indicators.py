@@ -3,10 +3,10 @@ import pandas as pd
 
 class mav(ValueBasedIndicators):
     def __init__(self, data_iterator, timeframe):
-        super().__init__(data_iterator, timeframe, period=10, column_names=['mav'])
+        super().__init__(data_iterator, timeframe, period=0, column_names=['mav'])
         
     def indicator(self, data):
-        mav = (data['Close'].shift(10))
+        mav = (data['Close'].shift(0))
         return pd.DataFrame({'mav': mav})
     
 class channel(ValueBasedIndicators):
@@ -17,6 +17,7 @@ class channel(ValueBasedIndicators):
         upper = data['Open'].shift(1).rolling(window=3).mean()
         lower = data['Close'].shift(1).rolling(window=3).mean()
         return pd.DataFrame({'upper': upper, 'lower': lower})
+
 
     
 

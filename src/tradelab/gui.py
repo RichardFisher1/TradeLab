@@ -35,8 +35,11 @@ class ChartsApp:
             with dpg.menu(label="New_Chart"):
                 for timeframe in self.price_iterator.data.keys():
                     dpg.add_menu_item(label=timeframe, callback=self.create_chart_window, user_data=timeframe)
-            with dpg.menu(label="Backtest"):
-                dpg.add_radio_button(("None", "strat_1", "strat_2"), tag='backtest', callback=self._backtest_switch, horizontal=False)
+            # with dpg.menu(label="Backtest"):
+            #     dpg.add_radio_button(("None", "strat_1", "strat_2"), tag='backtest', callback=self._backtest_switch, horizontal=False)
+            
+            dpg.add_separator() 
+            dpg.add_text(f"Time: {self.price_iterator.current_time}", tag="current_time_text")
 
     def create_controls_window(self):
         with dpg.window(label="Controls", no_close=True, collapsed=True):
@@ -61,23 +64,32 @@ class ChartsApp:
     def save_workspace(self):
         dpg.save_init_file("dpg.ini")
     
+    def update_displayed_time(self):
+        dpg.set_value("current_time_text", f"Time: {self.price_iterator.current_time}")
     ### ---------- CONTROLLER & MENU BUTTONS ---------- ###
 
     def next_iteration(self):
         self.price_iterator.next()
+        self.update_displayed_time()
         self.indicator_manager.update_active_indicators()
 
         for window in self.windows.values():
                 window.update_candle_serie_plots()
+                window.update_current_time_vline()
                 window.update_indicator_plots()
+
                 
     def change_increment(self, sender, timeframe):
         previous_time = self.price_iterator.current_time
         self.price_iterator.change_increment(timeframe)
         new_time = self.price_iterator.current_time
+        self.indicator_manager.update_active_indicators()
+        self.indicator_manager.update_active_indicators(change_increment=True)
         if previous_time != new_time:
-            #update candelsticks 
-            ...
+            for window in self.windows.values():
+                window.update_candle_serie_plots()
+                window.update_indicator_plots()
+
 
     def start(self):
         self.start_switch = True
@@ -87,11 +99,13 @@ class ChartsApp:
 
     def next_day(self):
         self.price_iterator.next_day()
+        self.indicator_manager.update_active_indicators()
         for window in self.windows.values():
-                window.update_candle_series()
+                window.update_candle_serie_plots()
+                window.update_indicator_plots()
 
     ### -------- MAIN FLOW ------------------ ###
-               
+             
     def run(self):
         dpg.create_viewport(title='TradeLab_Charts', width=600, height=200)
         dpg.setup_dearpygui()
@@ -103,12 +117,6 @@ class ChartsApp:
                     window.update_indicator_menu()  # right now this updates also active indicators and checked_indicators
                     window.update_indicator_plots()
             
-
-            # update indicators
-            # update plot indicators 
-
-
-
             
             if self.start_switch is True:
                 self.next_iteration()

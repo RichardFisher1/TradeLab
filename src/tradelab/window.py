@@ -11,6 +11,7 @@ class Window:
         self.y_axis_tag = f'y-axis_{window_counter}'
         self.menu_indicators_tag = f'menu_indicators_{window_counter}'
         self.candle_series_tag = f'candle_series_{window_counter}'
+        self.current_time_vline_tag = f"vline_tag_{window_counter}"
         self.indicator_manager = indicator_manager
         self.indicators = self.indicator_manager.available_indicator
         self.checked_indicators = {}
@@ -35,6 +36,8 @@ class Window:
                             parent=self.y_axis_tag,
                             tag = self.candle_series_tag)
         
+        dpg.add_vline_series([self.price_iterator.current_indices[self.timeframe]], parent=self.x_axis_tag, tag=self.current_time_vline_tag)
+
         self.update_axis_limits()
 
     def update_axis_limits(self):
@@ -55,6 +58,10 @@ class Window:
             lows=self.price_iterator.simulation_data[self.timeframe]["Low"].tolist(),
             closes=self.price_iterator.simulation_data[self.timeframe]["Close"].tolist(),
         )
+
+    def update_current_time_vline(self):        
+        dpg.set_value(self.current_time_vline_tag, [[self.price_iterator.current_indices[self.timeframe]]])
+
 
     def update_indicator_menu(self):
         # Clear existing items in the indicators menu
@@ -101,7 +108,6 @@ class Window:
             indicator_data = self.indicator_manager.active_indicators[indicator_name, self.timeframe]['indicator'].data
             for tag, column_name in zip(tags, indicator_data.columns[1:]):
                 dpg.configure_item(tag, x=list(indicator_data.index), y=list(indicator_data[column_name]))
-
 
 
     def _update_view_mode(self, _, app_data):

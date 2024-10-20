@@ -4,7 +4,7 @@ import numpy as np
 class ValueBasedIndicators:
     def __init__(self, data_iterator, timeframe, period, column_names):
         self.data_iterator = data_iterator
-        self.current_update_index = 0
+        self.current_update_index = self.data_iterator.current_indices[timeframe]
         self.period = period
         self.timeframe = timeframe
         self.column_names = column_names
@@ -20,13 +20,23 @@ class ValueBasedIndicators:
 
     def update(self, change_increment = False):
         if change_increment == False:
-            current_index = self.data_iterator.current_indices[self.timeframe]
-            if current_index >= self.period:
-                price_data = self.data_iterator.simulation_data[self.timeframe].iloc[current_index-self.period:current_index+1, :].copy()
+            self.current_update_index = self.data_iterator.current_indices[self.timeframe]
+            if self.current_update_index >= self.period:
+                price_data = self.data_iterator.simulation_data[self.timeframe].iloc[self.current_update_index-self.period:self.current_update_index+1, :].copy()
                 result = price_data.groupby(price_data['DateTime'].dt.date).apply(self.indicator).reset_index(level=0, drop=True) 
-                self.data.loc[current_index, self.column_names] = result.loc[current_index, self.column_names]
+                self.data.loc[self.current_update_index, self.column_names] = result.loc[self.current_update_index, self.column_names]
+            
 
-
+        if change_increment == True:
+            if self.current_update_index >= self.period:
+                price_data = self.data_iterator.simulation_data[self.timeframe].iloc[self.current_update_index-self.period:self.current_update_index+1, :].copy()
+                result = price_data.groupby(price_data['DateTime'].dt.date).apply(self.indicator).reset_index(level=0, drop=True) 
+                self.data.loc[self.current_update_index, self.column_names] = result.loc[self.current_update_index, self.column_names]
+                
+                self.current_update_index = self.data_iterator.current_indices[self.timeframe]
+                price_data = self.data_iterator.simulation_data[self.timeframe].iloc[self.current_update_index-self.period:self.current_update_index+1, :].copy()
+                result = price_data.groupby(price_data['DateTime'].dt.date).apply(self.indicator).reset_index(level=0, drop=True) 
+                self.data.loc[self.current_update_index, self.column_names] = result.loc[self.current_update_index, self.column_names]
 
             # self.test = pd.DataFrame(columns=['DateTime'] + self.column_names)
             # self.test['DateTime'] = self.data_iterator.simulation_data[self.timeframe]['DateTime'].copy()

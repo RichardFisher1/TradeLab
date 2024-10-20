@@ -67,9 +67,9 @@ class IndicatorManager:
             if self.active_indicators[key]['count'] == 0:
                 del self.active_indicators[key]
 
-    def update_active_indicators(self):
+    def update_active_indicators(self, change_increment=False):
         for value in self.active_indicators.values():
-            value['indicator'].update()
+            value['indicator'].update(change_increment)
 
 
 

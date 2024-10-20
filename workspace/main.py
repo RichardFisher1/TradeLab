@@ -20,4 +20,12 @@ app.run()
 
 
 
+# FIX SAVING WORKSPACE
+# FIX COLOUR SETTING FOR INDICATORS
+# FIX SPEED CONTROL OF SIMULATION 
+
+
+
+
+#ML
 # use cnn to learn pattern for single case - use to signal similar instances. use indicators to focus on particular contexts 
