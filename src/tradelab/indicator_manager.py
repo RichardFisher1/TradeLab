@@ -4,31 +4,29 @@ import importlib.util
 import dearpygui.dearpygui as dpg
 from pprint import pprint
 import importlib
-import sys
 
 
 class IndicatorManager:
-    def __init__(self, file_path, price_iterator):
-        self.file_path = file_path
+    def __init__(self, price_iterator):
+        self.file_path = "workspace/my_indicators.py"
         self.price_iterator = price_iterator
         self.last_modified_time = None
         self.available_indicator = {}
         self.active_indicators = {}
         self.update_available_indicators()
 
-    def get_file_modification_time(self, file_path):
+    def get_file_modification_time(self):
         """Get the last modified time of the specified file."""
-        return os.path.getmtime(file_path)
+        return os.path.getmtime(self.file_path)
     
     def update_available_indicators(self):
 
-        current_modified_time = self.get_file_modification_time(self.file_path)
+        current_modified_time = self.get_file_modification_time()
         if current_modified_time != self.last_modified_time:
             self.last_modified_time = current_modified_time
-            file_path = "workspace/my_indicators.py"
-            class_names = get_class_names_from_file(file_path)
-            module_name = os.path.splitext(os.path.basename(file_path))[0]
-            spec = importlib.util.spec_from_file_location(module_name, file_path)
+            class_names = get_class_names_from_file(self.file_path)
+            module_name = os.path.splitext(os.path.basename(self.file_path))[0]
+            spec = importlib.util.spec_from_file_location(module_name, self.file_path)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
 
@@ -44,8 +42,6 @@ class IndicatorManager:
             ordered_indicators = {name: self.available_indicator[name] for name in class_names if name in self.available_indicator}
             self.available_indicator.clear()
             self.available_indicator.update(ordered_indicators)
-
-            self.active_indicators.clear()
 
             return True
         

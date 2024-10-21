@@ -69,7 +69,8 @@ class Window:
         if children:
             for child in children[1]:
                 dpg.delete_item(child)
-       
+        
+        self.indicator_manager.active_indicators.clear()
         for indicator_name in self.indicators:
             is_checked = True if indicator_name in self.checked_indicators else False
             dpg.add_checkbox(
@@ -82,6 +83,7 @@ class Window:
 
             if is_checked == True:
                 self.indicator_manager.create_indicator(indicator_name, self.timeframe)
+        print(self.checked_indicators)
 
 
     def activate_indicator(self, sender, app_data, indicator_name):

@@ -1,6 +1,11 @@
+import json
+import os
 import dearpygui.dearpygui as dpg
 from tradelab.price_iterator import PriceIterator
 from tradelab.indicator_manager import IndicatorManager
+from tradelab.strategy_manager import StrategyManager
+from tradelab.backtester import _BackTester
+from tradelab.broker import Broker
 from utils.helper_functions import get_class_names_from_file
 from tradelab.window import Window
 
@@ -8,17 +13,21 @@ from tradelab.window import Window
 
 class ChartsApp:
     def __init__(self, data):
-        self.file_path = "workspace/my_indicators.py"
         self.window_counter = 0
         self.windows = {}
+        self.window_configs = []
         
         self.price_iterator = PriceIterator(data)
-        self.indicator_manager = IndicatorManager(self.file_path, self.price_iterator)
+        self.broker = Broker(self.price_iterator)
+        self.indicator_manager = IndicatorManager(self.price_iterator)
+        self.strategy_manager = StrategyManager(self.price_iterator, self.broker)
         
         self.backtest_switch = False
         self.start_switch = False
 
         self.create_context()
+        
+        self.load_worksape()
       
     ### ---------- CREATE GUI COMPONENTS - MENUS & WINDOWS ---------- ###
 
@@ -35,8 +44,8 @@ class ChartsApp:
             with dpg.menu(label="New_Chart"):
                 for timeframe in self.price_iterator.data.keys():
                     dpg.add_menu_item(label=timeframe, callback=self.create_chart_window, user_data=timeframe)
-            # with dpg.menu(label="Backtest"):
-            #     dpg.add_radio_button(("None", "strat_1", "strat_2"), tag='backtest', callback=self._backtest_switch, horizontal=False)
+            with dpg.menu(label="Visual_Backtest"):
+                dpg.add_radio_button(("None", "strat_1", "strat_2"), tag='backtest', callback=self._backtest_switch, horizontal=False)
             
             dpg.add_separator() 
             dpg.add_text(f"Time: {self.price_iterator.current_time}", tag="current_time_text")
@@ -54,31 +63,61 @@ class ChartsApp:
         window_tag = f'window_{self.window_counter}'
         self.windows[window_tag] = Window(self.window_counter, timeframe, self.price_iterator, self.indicator_manager)
         self.window_counter +=1
+
+        self.window_configs.append({'timeframe': timeframe})
+
     
     def _backtest_switch(self, sender, app_data):
         if app_data == 'None':
             self.backtest_switch = False
         else:
+            self.strategy_manager.activate_strategy(app_data)
+            strategy = self.strategy_manager.active_strategy[app_data]['strategy']
+            self.backtest = _BackTester(self.price_iterator, self.broker, strategy, self.indicator_manager, self.windows)
             self.backtest_switch = True
-  
+    
+
+    def load_worksape(self):
+        try:
+            with open('config.txt', 'r') as file:
+                loaded_config = json.load(file)
+        except FileNotFoundError:
+            loaded_config = {"windows": []}
+
+        for window in loaded_config['windows']:
+            self.create_chart_window(None, None, timeframe=window['timeframe']) 
+
+        dpg.configure_app(init_file="dpg.ini")
+    
     def save_workspace(self):
         dpg.save_init_file("dpg.ini")
-    
+
+        config = { 
+        'windows': self.window_configs  # Save the timeframes of the created windows 
+        }
+
+        with open('config.txt', 'w') as file:
+            json.dump(config, file)
+
     def update_displayed_time(self):
         dpg.set_value("current_time_text", f"Time: {self.price_iterator.current_time}")
-    ### ---------- CONTROLLER & MENU BUTTONS ---------- ###
+    
+    ### ---------- CONTROLLER ---------- ###
 
     def next_iteration(self):
-        self.price_iterator.next()
-        self.update_displayed_time()
+        
+        if self.backtest_switch is not True:
+            self.price_iterator.next()
+        else: 
+            self.backtest.next()
+        
         self.indicator_manager.update_active_indicators()
 
         for window in self.windows.values():
                 window.update_candle_serie_plots()
                 window.update_current_time_vline()
                 window.update_indicator_plots()
-
-                
+              
     def change_increment(self, sender, timeframe):
         previous_time = self.price_iterator.current_time
         self.price_iterator.change_increment(timeframe)
@@ -89,7 +128,6 @@ class ChartsApp:
             for window in self.windows.values():
                 window.update_candle_serie_plots()
                 window.update_indicator_plots()
-
 
     def start(self):
         self.start_switch = True
@@ -117,10 +155,17 @@ class ChartsApp:
                     window.update_indicator_menu()  # right now this updates also active indicators and checked_indicators
                     window.update_indicator_plots()
             
+            if self.strategy_manager.update_available_strategies():
+                ...
+
+            if self.backtest_switch is True:
+                ...
             
             if self.start_switch is True:
                 self.next_iteration()
-
+            
+            self.update_displayed_time()
+            
             for window in self.windows.values():
                 window.update_axis_limits()
             
