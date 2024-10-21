@@ -8,7 +8,7 @@ class mav(ValueBasedIndicators):
     def indicator(self, data):
         mav = (data['Close'].shift(0))
         return pd.DataFrame({'mav': mav})
-    
+        
 class channel(ValueBasedIndicators):
     def __init__(self, data_iterator, timeframe):
         super().__init__(data_iterator, timeframe, period=3, column_names=['upper', 'lower'])

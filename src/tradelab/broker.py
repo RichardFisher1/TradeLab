@@ -89,11 +89,13 @@ class Broker:
             dir = instance.loc[0, 'dir']
             for tf in set(tf for tf, dir in self.entry_signals.keys()):
                 instance.loc[0, 'DateTime'] = self.data_iterator.simulation_data[tf].iloc[self.data_iterator.current_indices[tf],0]
-                self.entry_signals[tf, dir] = pd.concat([self.entry_signals[tf, dir], instance[['DateTime', 'entry_price', 'number_of_contracts']]])
+                if not instance[['DateTime', 'entry_price', 'number_of_contracts']].isna().all().all():
+                    self.entry_signals[tf, dir] = pd.concat([self.entry_signals[tf, dir], instance[['DateTime', 'entry_price', 'number_of_contracts']]])
         
         elif type == 'exit':
             instance.rename(columns={'Exit_time': 'DateTime', 'id':'trade_id'}, inplace=True)
             dir = instance.loc[0, 'dir']
             for tf in set(tf for tf, dir in self.exit_signals.keys()):
                 instance.loc[0, 'DateTime'] = self.data_iterator.simulation_data[tf].iloc[self.data_iterator.current_indices[tf],0]
-                self.exit_signals[tf, dir] = pd.concat([self.exit_signals[tf, dir], instance[['DateTime', 'exit_price', 'number_of_contracts']]])
+                if not instance[['DateTime', 'exit_price', 'number_of_contracts']].isna().all().all():
+                    self.exit_signals[tf, dir] = pd.concat([self.exit_signals[tf, dir], instance[['DateTime', 'exit_price', 'number_of_contracts']]])

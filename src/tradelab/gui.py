@@ -8,6 +8,7 @@ from tradelab.backtester import _BackTester
 from tradelab.broker import Broker
 from utils.helper_functions import get_class_names_from_file
 from tradelab.window import Window
+import pandas as pd
 
 
 
@@ -24,6 +25,10 @@ class ChartsApp:
         
         self.backtest_switch = False
         self.start_switch = False
+        self.print_switch = False
+        
+        self.previous_data = pd.DataFrame()
+        self.current_data = pd.DataFrame()
 
         self.create_context()
         
@@ -46,9 +51,24 @@ class ChartsApp:
                     dpg.add_menu_item(label=timeframe, callback=self.create_chart_window, user_data=timeframe)
             with dpg.menu(label="Visual_Backtest"):
                 dpg.add_radio_button(("None", "strat_1", "strat_2"), tag='backtest', callback=self._backtest_switch, horizontal=False)
-            
+            with dpg.menu(label="Closed_Trades"):
+                # dpg.add_menu_item(label="print", callback=self.print_switch)
+                dpg.add_checkbox(
+                    label='Closed_Trades', 
+                    callback=self._print_switch
+                )
             dpg.add_separator() 
             dpg.add_text(f"Time: {self.price_iterator.current_time}", tag="current_time_text")
+    
+    def _print_switch(self, sender, app_data):
+            self.print_switch = app_data
+    
+    def print(self):
+        self.current_data = self.backtest.broker.closed_trades
+        self.current_data['cumulative_profit'] = self.current_data['profit'].cumsum()
+        if not self.previous_data.equals(self.current_data): 
+            self.previous_data = self.current_data
+            print(self.current_data)
 
     def create_controls_window(self):
         with dpg.window(label="Controls", no_close=True, collapsed=True):
@@ -65,15 +85,17 @@ class ChartsApp:
         self.window_counter +=1
 
         self.window_configs.append({'timeframe': timeframe})
-
-    
-    def _backtest_switch(self, sender, app_data):
-        if app_data == 'None':
+  
+    def _backtest_switch(self, sender, strategy_name):
+        if strategy_name == 'None':
             self.backtest_switch = False
         else:
-            self.strategy_manager.activate_strategy(app_data)
-            strategy = self.strategy_manager.active_strategy[app_data]['strategy']
-            self.backtest = _BackTester(self.price_iterator, self.broker, strategy, self.indicator_manager, self.windows)
+            self.strategy_manager.activate_strategy(strategy_name)
+            strategy = self.strategy_manager.active_strategy[strategy_name]['strategy']
+            for indicator_name, timeframe in strategy.indicators:
+                self.indicator_manager.create_indicator(indicator_name, timeframe)
+            
+            self.backtest = _BackTester(self.price_iterator, self.broker, strategy, self.indicator_manager)
             self.backtest_switch = True
     
 
@@ -106,13 +128,8 @@ class ChartsApp:
 
     def next_iteration(self):
         
-        if self.backtest_switch is not True:
-            self.price_iterator.next()
-        else: 
-            self.backtest.next()
-        
+        self.backtest.next() if self.backtest_switch else self.price_iterator.next()
         self.indicator_manager.update_active_indicators()
-
         for window in self.windows.values():
                 window.update_candle_serie_plots()
                 window.update_current_time_vline()
@@ -159,10 +176,15 @@ class ChartsApp:
                 ...
 
             if self.backtest_switch is True:
-                ...
+                for window in self.windows.values():
+                    window.update_candle_serie_plots()
+                    window.update_current_time_vline()
+                    window.update_indicator_plots()
             
             if self.start_switch is True:
                 self.next_iteration()
+                if self.print_switch == True:
+                    self.print()
             
             self.update_displayed_time()
             

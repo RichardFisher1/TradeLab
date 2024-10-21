@@ -26,42 +26,17 @@ class BackTester:
         self.trades = self.back_test.broker.closed_trades
 
 class _BackTester:
-    def __init__(self, price_iterator, broker, strategy, indicator_manager=None, windows = None):
+    def __init__(self, price_iterator, broker, strategy, indicator_manager):
         self.price_iterator = price_iterator
         self.broker = broker
-        self.strategy = strategy
-        if indicator_manager != None:
-            self.indicator_manager = indicator_manager
-        else:
-            self.indicator_manager = IndicatorManager(self.price_iterator)
-        self.windows = windows
-        for indicator_dic in self.strategy.indicators:
-            self.indicator_manager.create_indicator(indicator_dic[0], indicator_dic[1])
-        self.indicators = self.indicator_manager.active_indicators
+        self.indicator_manager = indicator_manager
+        self.indicators = indicator_manager.active_indicators
         self.resolutions = list(self.price_iterator.data.keys())
-        
-        if self.windows:
-            for window in self.windows.values():
-                window.update_candle_serie_plots()
-                window.update_current_time_vline()
-                window.update_indicator_plots()
-       
+        self.strategy = strategy
         self.strategy.next()
         self.broker.update()
         self.next()
         
-
-    def instantiate_indicators(self, indicators):
-        self.indicators = {}
-        for indicator_class, *params in indicators:
-            if params:
-                kwargs = params[0]
-                instance = indicator_class(self.price_iterator, **kwargs)
-            else:
-                instance = indicator_class(self.price_iterator)
-
-            self.indicators[indicator_class.__name__] = instance
-
     def next(self):
         if self.price_iterator.increment != self.strategy.current_increment:
             old_length = self.price_iterator.current_indices[self.resolutions[0]]
@@ -77,12 +52,6 @@ class _BackTester:
             self.strategy.next()
             self.broker.update()
         
-        if self.windows:
-            for window in self.windows.values():
-                window.update_candle_serie_plots()
-                window.update_current_time_vline()
-                window.update_indicator_plots()
-
     def run(self):
         while self.price_iterator.is_next():
             self.next()
