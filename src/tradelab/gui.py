@@ -9,11 +9,17 @@ from tradelab.broker import Broker
 from utils.helper_functions import get_class_names_from_file
 from tradelab.window import Window
 import pandas as pd
+import time
+from datetime import datetime, timedelta
+
 
 
 
 class ChartsApp:
     def __init__(self, data):
+        self.current_time = datetime.now()
+        self.speed = timedelta(seconds=0)
+
         self.window_counter = 0
         self.windows = {}
         self.window_configs = []
@@ -26,12 +32,13 @@ class ChartsApp:
         self.backtest_switch = False
         self.start_switch = False
         self.print_switch = False
+        self.closed_trades_window_open = False
+        self.equity_curve_window_open = False
         
         self.previous_data = pd.DataFrame()
         self.current_data = pd.DataFrame()
 
         self.create_context()
-        
         self.load_worksape()
       
     ### ---------- CREATE GUI COMPONENTS - MENUS & WINDOWS ---------- ###
@@ -52,11 +59,18 @@ class ChartsApp:
             with dpg.menu(label="Visual_Backtest"):
                 dpg.add_radio_button(("None", "strat_1", "strat_2"), tag='backtest', callback=self._backtest_switch, horizontal=False)
             with dpg.menu(label="Closed_Trades"):
-                # dpg.add_menu_item(label="print", callback=self.print_switch)
                 dpg.add_checkbox(
-                    label='Closed_Trades', 
-                    callback=self._print_switch
+                    label='Closed Trades', 
+                    callback=self.toggle_closed_trades_window,
+                    tag = 'closed_trades_checkbox_tag'
                 )
+            with dpg.menu(label="Equity_Curve"):  # New menu for equity curve
+                dpg.add_checkbox(
+                    label='Cumulative Profit', 
+                    callback=self.toggle_equity_curve_window,
+                    tag='equity_curve_checkbox_tag'
+                )
+
             dpg.add_separator() 
             dpg.add_text(f"Time: {self.price_iterator.current_time}", tag="current_time_text")
     
@@ -72,12 +86,80 @@ class ChartsApp:
 
     def create_controls_window(self):
         with dpg.window(label="Controls", no_close=True, collapsed=True):
-            dpg.add_text("This window has no close button.")
+            dpg.add_slider_float(label="Speed", default_value=0.5, max_value=1, min_value=0, callback=self.update_speed)
             dpg.add_radio_button(list(self.price_iterator.data.keys()), default_value=None, callback=self.change_increment)
             dpg.add_button(label="Next_iteration", callback=self.next_iteration)
             dpg.add_button(label="Start", callback=self.start)
             dpg.add_button(label="Stop", callback=self.stop)
             dpg.add_button(label="Next_day", callback=self.next_day)
+    
+    def toggle_equity_curve_window(self, sender, app_data):
+        if app_data:  # Checkbox checked
+            self.open_equity_curve_window()
+        else:  # Checkbox unchecked
+            self.close_equity_curve_window()
+
+    def open_equity_curve_window(self):
+        if not self.equity_curve_window_open:
+            with dpg.window(label="Equity Curve", tag='equity_curve_window_tag', on_close=self.close_equity_curve_window):
+                # Create a plot for the equity curve
+                with dpg.plot(label="Equity Curve", height=-1, width=-1):
+                    dpg.add_plot_legend()
+                    self.equity_curve_plot = dpg.add_line_series([], label="Cumulative Profit", tag='equity_curve_series_tag')
+
+            self.equity_curve_window_open = True
+            self.update_equity_curve_window()
+
+    def close_equity_curve_window(self):
+        if self.equity_curve_window_open:
+            dpg.delete_item('equity_curve_window_tag')  # Close the window
+            self.equity_curve_window_open = False
+        dpg.set_value('equity_curve_checkbox_tag', False)
+
+    def update_equity_curve_window(self):
+        if self.broker.closed_trades is not None:
+            cumulative_profit = self.broker.closed_trades['profit'].cumsum()  # Calculate cumulative profit
+            self.equity_curve_data = cumulative_profit.tolist()  # Convert to list for plotting
+            
+            # Update the equity curve line series
+            if self.equity_curve_window_open and self.equity_curve_plot is not None:
+                dpg.set_value('equity_curve_series_tag', self.equity_curve_data)
+
+
+
+
+
+    def toggle_closed_trades_window(self, sender, app_data):
+        if app_data:  # Checkbox checked
+            self.open_closed_trades_window()
+        else:  # Checkbox unchecked
+            self.close_closed_trades_window()
+
+    def open_closed_trades_window(self):
+        if not self.closed_trades_window_open:
+            with dpg.window(label="Closed Trades", tag='closed_trades_window_tag', on_close=self.close_closed_trades_window):
+                self.trades_text = dpg.add_text("")
+            self.closed_trades_window_open = True
+            self.update_closed_trades_window()
+
+    def close_closed_trades_window(self):
+        if self.closed_trades_window_open:
+            dpg.delete_item('closed_trades_window_tag')  # Close the window
+            self.closed_trades_window_open = False
+
+        dpg.set_value('closed_trades_checkbox_tag', False)
+
+    def update_closed_trades_window(self):
+        self.current_data = self.broker.closed_trades
+        self.current_data['cumulative_profit'] = self.current_data['profit'].cumsum()
+        trades_info = self.current_data.to_string(index=False)
+        
+        # Update the trades text
+        if self.closed_trades_window_open:
+            dpg.set_value(self.trades_text, trades_info)
+
+
+
 
     def create_chart_window(self, sender, app_data, timeframe):
         window_tag = f'window_{self.window_counter}'
@@ -98,7 +180,6 @@ class ChartsApp:
             self.backtest = _BackTester(self.price_iterator, self.broker, strategy, self.indicator_manager)
             self.backtest_switch = True
     
-
     def load_worksape(self):
         try:
             with open('config.txt', 'r') as file:
@@ -124,10 +205,21 @@ class ChartsApp:
     def update_displayed_time(self):
         dpg.set_value("current_time_text", f"Time: {self.price_iterator.current_time}")
     
+    def update_speed(self, sender, app_data):
+        
+        self.speed = timedelta(seconds=app_data * 5)
     ### ---------- CONTROLLER ---------- ###
 
+    def speed_of_simulation(self, delta):
+        if datetime.now() > self.current_time + delta:
+            self.current_time = datetime.now()  # Update the current time
+            return True  # Proceed with iteration
+        return False  #
+     
+
     def next_iteration(self):
-        
+        if not self.speed_of_simulation(delta=self.speed): 
+            return
         self.backtest.next() if self.backtest_switch else self.price_iterator.next()
         self.indicator_manager.update_active_indicators()
         for window in self.windows.values():
@@ -158,7 +250,7 @@ class ChartsApp:
         for window in self.windows.values():
                 window.update_candle_serie_plots()
                 window.update_indicator_plots()
-
+ 
     ### -------- MAIN FLOW ------------------ ###
              
     def run(self):
@@ -190,9 +282,16 @@ class ChartsApp:
             
             for window in self.windows.values():
                 window.update_axis_limits()
-            
-            
 
+
+            if self.closed_trades_window_open:
+                self.update_closed_trades_window()
+            
+            if self.equity_curve_window_open:
+                self.update_equity_curve_window()
+            
+            
+            
 
             dpg.render_dearpygui_frame()
 
