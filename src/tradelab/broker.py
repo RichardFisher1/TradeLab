@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import itertools
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 class Broker:
     def __init__(self, data_iterator):
@@ -28,7 +30,17 @@ class Broker:
             'number_of_contracts' : [],
             'profit' : [],
         })
-                
+
+        self.equity_signals = {tf: pd.DataFrame(index=self.data_iterator.data[tf].index, 
+                                columns=['profit', 'cumulative_profit'])
+                                for tf in self.data_iterator.data.keys()
+        }
+
+
+        # self.equity_signals = {tf: self.data_iterator.data[tf][['DateTime']].copy() for tf in self.data_iterator.data for direction in ['long', 'short']}
+        # for key, df in self.entry_signals.items():
+        #     df[['index', 'entry_price', 'number_of_contracts']] = None 
+
         self.entry_signals = {(tf, direction): pd.DataFrame(columns=['index', 'entry_price', 'number_of_contracts']) for tf in self.data_iterator.data for direction in ['long', 'short']}
         self.exit_signals = {(tf, direction): pd.DataFrame(columns=['index', 'exit_price', 'number_of_contracts']) for tf in self.data_iterator.data for direction in ['long', 'short']}
 
@@ -75,10 +87,44 @@ class Broker:
         self.open_trades.drop(0, inplace=True)
         self.open_trades.reset_index(inplace=True, drop=True)
         self.update_signals('exit', new_instance)
+        self.update_equity('new_instance', new_instance)
         del new_instance
+    
+
+    def update_equity(self, type, instance):        
+        if type == 'new_instance':
+            if self.equity_signals['5min'].loc[instance.loc[0, 'index']['5min'], 'profit'] != np.nan:
+                self.equity_signals['5min'].loc[instance.loc[0, 'index']['5min'], 'profit'] = instance.loc[0, 'profit']
+        
+     
+
+        #print(self.equity_signals['5min']['profit'].cumsum())
+        # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+        #     print(self.equity_signals['5min']['profit'].cumsum())
+
+            self.equity_signals['5min']['cumulative_profit'] = self.equity_signals['5min']['profit'].fillna(0).cumsum()
+
+        # print(self.equity_signals['5min'])
+        # print(self.equity_signals['5min']['profit'].sum())
+            print(self.equity_signals['5min']['cumulative_profit'])
+        
+        
+        # print(self.closed_trades.loc[0, 'indices']['5min'])
+        # print(self.closed_trades['profit'].sum())
+        #total_profit = sum(trade.profit for trade in self.open_trades)  # Adjust this depending on the structure of open_trades
+        # for tf in self.equity_signals.keys():
+        #     self.equity_signals[tf].loc[self.data_iterator.current_indices[tf], 'profit'] = total_profit
+        # print(self.equity_signals['5min'])
+        # print(self.equity_signals['5min']['profit'].sum())
+
+        # self.equity_signals['5min']['cumulative_profit'] = self.equity_signals['5min']['profit'].cumsum()
+
+        # print(self.equity_signals['5min']['cumulative_profit'])
+
 
     def update(self):
         self.update_open_trades()
+        
         
     def update_open_trades(self):
         for index, trade in self.open_trades.iterrows():

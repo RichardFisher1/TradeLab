@@ -37,17 +37,18 @@ class ChartsApp:
         
         self.previous_data = pd.DataFrame()
         self.current_data = pd.DataFrame()
-
+        
         self.create_context()
-        self.create_themes()
         self.load_worksape()
       
     ### ---------- CREATE GUI COMPONENTS - MENUS & WINDOWS ---------- ###
 
     def create_context(self):
         dpg.create_context()
-        self.create_menus()
-        self.create_controls_window()
+        self.create_themes()
+        self.create_menus() 
+        self.create_controls_window()  
+        #dpg.configure_app(docking=True, docking_space=True)
         dpg.configure_app(docking=True, docking_space=True, init_file="dpg.ini", load_init_file=True)
 
     def create_themes(self):
@@ -63,6 +64,25 @@ class ChartsApp:
                 dpg.add_theme_color(dpg.mvPlotCol_Line, (255, 0, 0), category=dpg.mvThemeCat_Plots)
                 dpg.add_theme_style(dpg.mvPlotStyleVar_Marker, dpg.mvPlotMarker_Down, category=dpg.mvThemeCat_Plots)
                 dpg.add_theme_style(dpg.mvPlotStyleVar_MarkerSize, 4, category=dpg.mvThemeCat_Plots)   
+
+        # Global black theme for windows and menu
+        with dpg.theme(tag="black_theme"):
+            with dpg.theme_component(dpg.mvAll):  # Apply to all Dear PyGui components
+                # dpg.add_theme_color(dpg.mvThemeCol_WindowBg, (0, 0, 0), category=dpg.mvThemeCat_Core)  # Black window background
+                dpg.add_theme_color(dpg.mvThemeCol_TitleBg, (0, 0, 0), category=dpg.mvThemeCat_Core)  # Dark title background
+                dpg.add_theme_color(dpg.mvThemeCol_TitleBgActive, (0, 0, 0), category=dpg.mvThemeCat_Core)  # Darker when active
+                dpg.add_theme_color(dpg.mvThemeCol_FrameBg, (0, 0, 0), category=dpg.mvThemeCat_Core)  # Frame background (buttons, etc.)
+                dpg.add_theme_color(dpg.mvThemeCol_PopupBg, (0, 0, 0), category=dpg.mvThemeCat_Core)  # Black background for popup windows
+                dpg.add_theme_color(dpg.mvThemeCol_MenuBarBg, (0, 0, 0), category=dpg.mvThemeCat_Core)  # Menu bar background
+                dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 255, 255), category=dpg.mvThemeCat_Core)  # White text
+
+            # Apply plot-specific theme (for charts, etc.)
+            with dpg.theme_component(dpg.mvPlot):
+                dpg.add_theme_color(dpg.mvThemeCol_WindowBg, (0, 0, 0), category=dpg.mvThemeCat_Core)  # Black window background
+                dpg.add_theme_color(dpg.mvPlotCol_FrameBg, (0, 0, 0), category=dpg.mvThemeCat_Plots)  # Black frame background
+                dpg.add_theme_color(dpg.mvPlotCol_PlotBorder, (255, 255, 255), category=dpg.mvThemeCat_Plots)  # White border
+                dpg.add_theme_color(dpg.mvPlotCol_XAxis, (255, 255, 255), category=dpg.mvThemeCat_Plots)  # White X axis
+                dpg.add_theme_color(dpg.mvPlotCol_YAxis, (255, 255, 255), category=dpg.mvThemeCat_Plots)  # White Y axis
 
     def create_menus(self):
         with dpg.viewport_menu_bar():
@@ -88,16 +108,6 @@ class ChartsApp:
             dpg.add_separator() 
             dpg.add_text(f"Time: {self.price_iterator.current_time}", tag="current_time_text")
     
-    def _print_switch(self, sender, app_data):
-            self.print_switch = app_data
-    
-    def print(self):
-        self.current_data = self.backtest.broker.closed_trades
-        self.current_data['cumulative_profit'] = self.current_data['profit'].cumsum()
-        if not self.previous_data.equals(self.current_data): 
-            self.previous_data = self.current_data
-            print(self.current_data)
-
     def create_controls_window(self):
         with dpg.window(label="Controls", no_close=True, collapsed=True):
             dpg.add_slider_float(label="Speed", default_value=0.5, max_value=1, min_value=0, callback=self.update_speed)
@@ -122,9 +132,12 @@ class ChartsApp:
                     dpg.add_plot_legend()
 
                     # REQUIRED: create x and y axes
-                    dpg.add_plot_axis(dpg.mvXAxis, label="x")
-                    dpg.add_plot_axis(dpg.mvYAxis, label="y", tag="y_axis")
-                    self.equity_curve_plot = dpg.add_line_series([],[], label="Cumulative Profit", parent="y_axis", tag='equity_curve_series_tag')
+                    dpg.add_plot_axis(dpg.mvXAxis, label="x", tag='equity_curve_x_axis')
+                    dpg.add_plot_axis(dpg.mvYAxis, label="y", tag="equity_curve_y_axis")
+                    self.equity_curve_plot = dpg.add_line_series([],[], parent="equity_curve_y_axis", tag='equity_curve_series_tag')
+
+                    dpg.add_vline_series([self.price_iterator.current_indices['5min']], parent='equity_curve_x_axis', tag='current_time_vline_tag')
+
 
             self.equity_curve_window_open = True
             self.update_equity_curve_window()
@@ -138,16 +151,22 @@ class ChartsApp:
     def update_equity_curve_window(self):
         if self.broker.closed_trades is not None:
             cumulative_profit = self.broker.closed_trades['profit'].cumsum()  # Calculate cumulative profit
-            #self.equity_curve_data = cumulative_profit.tolist()  # Convert to list for plotting
-            print('hi')
-
-            print(cumulative_profit)
-            # # Update the equity curve line series
+            cumulative_profit = self.broker.equity_signals['5min']['cumulative_profit']
             if self.equity_curve_window_open and self.equity_curve_plot is not None:
-                ...
-
                 dpg.configure_item('equity_curve_series_tag', x=list(cumulative_profit.index), y=list(cumulative_profit))
-            
+                
+                # Set the axis limits automatically
+                #print(len(cumulative_profit))
+                if len(cumulative_profit) != 0:
+                    x_min = min(cumulative_profit.index)
+                    x_max = max(cumulative_profit.index)
+                    y_min = min(cumulative_profit) - 30
+                    y_max = max(cumulative_profit) + 30
+                    dpg.set_axis_limits('equity_curve_x_axis', x_min, x_max)  # Set limits for x-axis
+                    dpg.set_axis_limits('equity_curve_y_axis', y_min, y_max)  # S
+                                
+            dpg.set_value('current_time_vline_tag', [[self.price_iterator.current_indices['5min']]])
+
     def toggle_closed_trades_window(self, sender, app_data):
         if app_data:  # Checkbox checked
             self.open_closed_trades_window()
@@ -205,6 +224,8 @@ class ChartsApp:
 
         for window in loaded_config['windows']:
             self.create_chart_window(None, None, timeframe=window['timeframe']) 
+
+        self.open_equity_curve_window()
 
         dpg.configure_app(init_file="dpg.ini")
     
@@ -297,6 +318,7 @@ class ChartsApp:
     ### -------- MAIN FLOW ------------------ ###
              
     def run(self):
+        dpg.bind_theme("black_theme")
         dpg.create_viewport(title='TradeLab_Charts', width=600, height=200)
         dpg.setup_dearpygui()
         dpg.show_viewport()       

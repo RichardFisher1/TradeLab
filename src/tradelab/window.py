@@ -53,10 +53,13 @@ class Window:
                             time_unit=dpg.mvTimeUnit_S,
                             parent=self.y_axis_tag,
                             tag = self.candle_series_tag,
-                            bear_color=( 51, 0, 0),
-                            bull_color=(0, 65, 0))
+                            bear_color=( 120, 0, 0),
+                            bull_color=(0, 120, 0))
         
         dpg.add_vline_series([self.price_iterator.current_indices[self.timeframe]], parent=self.x_axis_tag, tag=self.current_time_vline_tag)
+
+        # dpg.bind_item_theme(self.plot_tag, f"black_theme_{window_counter}")
+        dpg.bind_theme("black_theme")
 
         self.update_axis_limits()
 
