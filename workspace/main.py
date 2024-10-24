@@ -5,7 +5,7 @@ import pandas as pd
 
 # Market configuration
 market_config = {
-    'date_range': ('2024-04-19', '2024-05-09'),
+    'date_range': ('2024-04-19', '2024-04-23'),
     'time_range': ('14:00:00', '17:00:00'),
     'market': 'wallstreet',
     'timeframes': ['1sec','1min', '5min']

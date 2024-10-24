@@ -13,9 +13,10 @@ class Strategy:
     def exit_conditions(self): 
         raise NotImplementedError("Subclasses must implement exit_conditions method.")
 
-    def intraday(self):
+    def intraday_close_open_positions(self):
         if self.TradeIntraday is True:
-            n_bars_in_day = self.data_iterator.data[self.data_iterator.increment]['DateTime'].dt.date.value_counts().sort_index()[0]
+            n_bars_in_day = self.data_iterator.n_bars_in_day[self.data_iterator.increment]
+            #n_bars_in_day = self.data_iterator.data[self.data_iterator.increment]['DateTime'].dt.date.value_counts().sort_index()[0]
             end_of_day_index = n_bars_in_day * ((self.data_iterator.current_indices[self.data_iterator.increment] // n_bars_in_day) + 1) - 1
             if self.data_iterator.current_indices[self.data_iterator.increment] == end_of_day_index:
                 for _, trade in self.broker.open_trades.iterrows():
@@ -28,8 +29,10 @@ class Strategy:
         if self.CumulateOrders is False:
             if self.broker.open_trades.empty:
                 self.entry_conditions()
+                self.intraday_close_open_positions()
         else:
             self.entry_conditions()
+            self.intraday_close_open_positions()
         
         self.exit_conditions()
 

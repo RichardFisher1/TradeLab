@@ -12,9 +12,27 @@ class Window:
         self.menu_indicators_tag = f'menu_indicators_{window_counter}'
         self.candle_series_tag = f'candle_series_{window_counter}'
         self.current_time_vline_tag = f"vline_tag_{window_counter}"
+        self.entry_signals_tag = None
+        self.exit_signals_tag = None
         self.indicator_manager = indicator_manager
         self.indicators = self.indicator_manager.available_indicator
         self.checked_indicators = {}
+
+        # # Create plot theme
+        # with dpg.theme(tag=f"entry_long_theme_{window_counter}"):
+        #     with dpg.theme_component(dpg.mvScatterSeries):
+        #         dpg.add_theme_color(dpg.mvPlotCol_Line, (217, 95, 2), category=dpg.mvThemeCat_Plots)
+        #         dpg.add_theme_style(dpg.mvPlotStyleVar_Marker, dpg.mvPlotMarker_Up, category=dpg.mvThemeCat_Plots)
+        #         dpg.add_theme_style(dpg.mvPlotStyleVar_MarkerSize, 4, category=dpg.mvThemeCat_Plots)
+
+        # with dpg.theme(tag=f"exit_long_theme_{window_counter}"):
+        #     with dpg.theme_component(dpg.mvScatterSeries):
+        #         dpg.add_theme_color(dpg.mvPlotCol_Line, (217, 95, 2), category=dpg.mvThemeCat_Plots)
+        #         dpg.add_theme_style(dpg.mvPlotStyleVar_Marker, dpg.mvPlotMarker_Down, category=dpg.mvThemeCat_Plots)
+        #         dpg.add_theme_style(dpg.mvPlotStyleVar_MarkerSize, 4, category=dpg.mvThemeCat_Plots)
+
+
+
 
         with dpg.window(label=timeframe, width=400, height=400, tag=self.window_tag):
             with dpg.menu_bar():
@@ -34,7 +52,9 @@ class Window:
                             self.price_iterator.simulation_data[self.timeframe]["High"].tolist(),
                             time_unit=dpg.mvTimeUnit_S,
                             parent=self.y_axis_tag,
-                            tag = self.candle_series_tag)
+                            tag = self.candle_series_tag,
+                            bear_color=( 51, 0, 0),
+                            bull_color=(0, 65, 0))
         
         dpg.add_vline_series([self.price_iterator.current_indices[self.timeframe]], parent=self.x_axis_tag, tag=self.current_time_vline_tag)
 
@@ -110,6 +130,24 @@ class Window:
             indicator_data = self.indicator_manager.active_indicators[indicator_name, self.timeframe]['indicator'].data
             for tag, column_name in zip(tags, indicator_data.columns[1:]):
                 dpg.configure_item(tag, x=list(indicator_data.index), y=list(indicator_data[column_name]))
+
+    def update_trading_signals_plots(self, entry_signals, exit_signals):    
+        entry_indices = entry_signals[self.timeframe, 'long']['index'].to_list()
+        entry_prices = entry_signals[self.timeframe, 'long']['entry_price'].to_list()
+        if self.entry_signals_tag == None:
+            self.entry_signals_tag = dpg.add_scatter_series(entry_indices, entry_prices, parent=self.y_axis_tag)
+            dpg.bind_item_theme(self.entry_signals_tag, "entry_long_theme")
+        else:
+            dpg.configure_item(self.entry_signals_tag, x=entry_indices, y=entry_prices)
+
+
+        exit_indices = exit_signals[self.timeframe, 'long']['index'].to_list()
+        exit_prices = exit_signals[self.timeframe, 'long']['exit_price'].to_list()
+        if self.exit_signals_tag == None:
+            self.exit_signals_tag = dpg.add_scatter_series(exit_indices, exit_prices, parent=self.y_axis_tag)
+            dpg.bind_item_theme(self.exit_signals_tag, "exit_long_theme")
+        else:
+            dpg.configure_item(self.exit_signals_tag, x=exit_indices, y=exit_prices)        
 
 
     def _update_view_mode(self, _, app_data):

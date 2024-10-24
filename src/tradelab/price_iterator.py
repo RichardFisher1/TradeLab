@@ -105,5 +105,10 @@ class PriceIterator:
         }
         return self.simulation_data[self.increment].loc[self.current_indices[self.increment],'DateTime'] + interval_delta.get(increment, timedelta())
 
-    # def is_next(self):
-    #     return self.current_indices[self.resolutions[0]] < len(self.data[self.resolutions[0]]) - 1
+    def is_next(self):
+        return self.current_indices[self.resolutions[0]] < len(self.data[self.resolutions[0]]) - 1
+    
+    def restart_simulation_data(self):
+        self.simulation_data = copy.deepcopy(self.data)  # Reset simulation data
+        self.current_indices = {tf: 0 for tf in self.data}  # Reset current indices
+        self.current_time = self.data[self.increment].loc[self.current_indices[self.increment], 'DateTime']  # Reset current time

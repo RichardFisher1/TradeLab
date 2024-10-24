@@ -19,16 +19,30 @@ class strat_1(Strategy):
         if self.step == 0:
             if (self.close('5min', 0) > self.open('5min', 0)) and (self.close('5min', 1) > self.open('5min', 1)):
                  self.buy(self.close('5min', 0))
+                 self.current_increment = '1sec'
 
     def exit_conditions(self):
         for _, trade in self.broker.open_trades.iterrows():
             self.current_increment = '1sec'
-            if trade['profit'] > 10:
-                self.sell(self.close('1sec', 0), trade_id=trade['id'])
-                self.current_increment = '5min'
-                self.step = 0
+            if trade['profit'] > 15:
 
-            if trade['profit'] < -10:
-                self.sell(self.close('1sec', 0), trade_id=trade['id'])
-                self.current_increment = '5min'
-                self.step = 0
+                if True:
+                    self.sell(trade['entry_price'] + 10, trade_id=trade['id'])
+                    self.current_increment = '5min'
+                    self.step = 0
+                else:
+                    self.sell(self.close('1sec', 0), trade_id=trade['id'])
+                    self.current_increment = '5min'
+                    self.step = 0
+
+            if trade['profit'] < -15:
+
+                if True:
+                    trade['entry_price'] - 10
+                    self.sell(trade['entry_price'] - 10, trade_id=trade['id'])
+                    self.current_increment = '5min'
+                    self.step = 0
+                else:
+                    self.sell(self.close('1sec', 0), trade_id=trade['id'])
+                    self.current_increment = '5min'
+                    self.step = 0

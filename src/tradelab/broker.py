@@ -19,6 +19,7 @@ class Broker:
 
         self.closed_trades = pd.DataFrame({
             'id': [],
+            'indices': [],
             'Entry_time': [],
             'entry_price': [],
             'exit_price' : [],
@@ -28,18 +29,20 @@ class Broker:
             'profit' : [],
         })
                 
-        self.entry_signals = {(tf, direction): pd.DataFrame(columns=['DateTime', 'entry_price', 'number_of_contracts']) for tf in self.data_iterator.data for direction in ['long', 'short']}
-        self.exit_signals = {(tf, direction): pd.DataFrame(columns=['DateTime', 'exit_price', 'number_of_contracts']) for tf in self.data_iterator.data for direction in ['long', 'short']}
+        self.entry_signals = {(tf, direction): pd.DataFrame(columns=['index', 'entry_price', 'number_of_contracts']) for tf in self.data_iterator.data for direction in ['long', 'short']}
+        self.exit_signals = {(tf, direction): pd.DataFrame(columns=['index', 'exit_price', 'number_of_contracts']) for tf in self.data_iterator.data for direction in ['long', 'short']}
 
     def open_position(self, dir, price, number_of_contracts):
         new_instance = pd.DataFrame({
             'id' : [next(self.trade_id)],
+            'indices': None,
             'Entry_time': [self.data_iterator.current_time],
             'entry_price' : [price],
             'dir' : [dir],
             'number_of_contracts' : [number_of_contracts],
             'profit' : [-self.spread]
             })
+        new_instance.at[0, 'indices'] = self.data_iterator.current_indices
         self.open_trades = pd.concat([self.open_trades, new_instance])
         self.open_trades.reset_index(inplace=True, drop=True)
         self.update_signals('entry', new_instance)
@@ -54,16 +57,19 @@ class Broker:
             profit = price - entry_price - self.spread
         elif dir == 'short':
             profit = entry_price - price + self.spread
+
         new_instance = pd.DataFrame({
             'id': [trade_id],
+            'indices': None,
             'Entry_time': [entry_time],
+            'Exit_time': [self.data_iterator.current_time],
             'entry_price' : [entry_price],
             'exit_price' : [price],
-            'Exit_time': [self.data_iterator.current_time],
             'dir' : [dir],
             'number_of_contracts' : [number_of_contracts],
             'profit' : [profit]
         })
+        new_instance.at[0, 'indices'] = self.data_iterator.current_indices
         self.closed_trades = pd.concat([self.closed_trades, new_instance])
         self.closed_trades.reset_index(inplace=True, drop=True)
         self.open_trades.drop(0, inplace=True)
@@ -85,17 +91,33 @@ class Broker:
 
         if type == 'entry':
             
-            instance.rename(columns={'Entry_time': 'DateTime', 'id':'trade_id'}, inplace=True)
+            instance.rename(columns={'indices':'index', 'id':'trade_id'}, inplace=True)
             dir = instance.loc[0, 'dir']
+
+            signal = instance.copy()
             for tf in set(tf for tf, dir in self.entry_signals.keys()):
-                instance.loc[0, 'DateTime'] = self.data_iterator.simulation_data[tf].iloc[self.data_iterator.current_indices[tf],0]
-                if not instance[['DateTime', 'entry_price', 'number_of_contracts']].isna().all().all():
-                    self.entry_signals[tf, dir] = pd.concat([self.entry_signals[tf, dir], instance[['DateTime', 'entry_price', 'number_of_contracts']]])
-        
+                signal['index'] = instance['index'].apply(lambda dic: dic[tf]).iloc[0]
+                if not signal[['index', 'entry_price', 'number_of_contracts']].isna().all().all():
+                    self.entry_signals[tf, dir] = pd.concat([self.entry_signals[tf, dir], signal[['index', 'entry_price', 'number_of_contracts']]])
+            
         elif type == 'exit':
-            instance.rename(columns={'Exit_time': 'DateTime', 'id':'trade_id'}, inplace=True)
+
+            instance.rename(columns={'indices':'index', 'id':'trade_id'}, inplace=True)
             dir = instance.loc[0, 'dir']
+
+            signal = instance.copy()
             for tf in set(tf for tf, dir in self.exit_signals.keys()):
-                instance.loc[0, 'DateTime'] = self.data_iterator.simulation_data[tf].iloc[self.data_iterator.current_indices[tf],0]
-                if not instance[['DateTime', 'exit_price', 'number_of_contracts']].isna().all().all():
-                    self.exit_signals[tf, dir] = pd.concat([self.exit_signals[tf, dir], instance[['DateTime', 'exit_price', 'number_of_contracts']]])
+                signal['index'] = instance['index'].apply(lambda dic: dic[tf]).iloc[0]
+                if not signal[['index', 'exit_price', 'number_of_contracts']].isna().all().all():
+                    self.exit_signals[tf, dir] = pd.concat([self.exit_signals[tf, dir], signal[['index', 'exit_price', 'number_of_contracts']]])
+
+
+
+
+
+            # instance.rename(columns={'Exit_time': 'DateTime', 'id':'trade_id'}, inplace=True)
+            # dir = instance.loc[0, 'dir']
+            # for tf in set(tf for tf, dir in self.exit_signals.keys()):
+            #     instance.loc[0, 'DateTime'] = self.data_iterator.simulation_data[tf].iloc[self.data_iterator.current_indices[tf],0]
+            #     if not instance[['DateTime', 'exit_price', 'number_of_contracts']].isna().all().all():
+            #         self.exit_signals[tf, dir] = pd.concat([self.exit_signals[tf, dir], instance[['DateTime', 'exit_price', 'number_of_contracts']]])
