@@ -24,7 +24,7 @@ class ChartsApp:
         self.price_iterator = PriceIterator(data)
         self.broker = Broker(self.price_iterator)
         self.indicator_manager = IndicatorManager(self.price_iterator)
-        self.strategy_manager = StrategyManager(self.price_iterator, self.broker)
+        self.strategy_manager = StrategyManager(self.price_iterator, self.broker, self.indicator_manager)
         
         self.backtest_switch = False
         self.start_switch = False
@@ -111,7 +111,6 @@ class ChartsApp:
             dpg.add_separator() 
             dpg.add_text(f"Time: {self.price_iterator.current_time}", tag="current_time_text")
     
-
     def toggle_ind_window(self, sender, app_data):
         if app_data:  # Checkbox checked
             self.open_ind_window()
@@ -135,8 +134,11 @@ class ChartsApp:
                     x_max = max(indicator_data.index)
                     y_min = indicator_data['atr'].dropna().min()
                     y_max = indicator_data['atr'].dropna().max() + 5
-                    
-                    self.ind_curve_plot = dpg.add_line_series(x=list(indicator_data.index),y=list(indicator_data['atr']) , parent='ind_curve_y_axis', tag='ind_curve_series_tag')
+
+                    current_point = indicator_data.loc[self.price_iterator.current_indices['5min'], 'atr']
+                    print(current_point)
+
+                    self.ind_curve_plot = dpg.add_line_series(x=list(indicator_data.index),y=list(indicator_data['atr']) , label=current_point, parent='ind_curve_y_axis', tag='ind_curve_series_tag')
                     dpg.set_axis_limits('ind_curve_x_axis', x_min, x_max) 
                     dpg.set_axis_limits('ind_curve_y_axis', y_min, y_max)  
                     dpg.add_vline_series([self.price_iterator.current_indices['5min']], parent='ind_curve_x_axis', tag='current_time_ind_vline_tag_2')
@@ -158,8 +160,8 @@ class ChartsApp:
             x_max = max(indicator_data.index)
             y_min = indicator_data['atr'].dropna().min()
             y_max = indicator_data['atr'].dropna().max() + 5
-
-            dpg.configure_item('ind_curve_series_tag', x=list(indicator_data.index), y=list(indicator_data['atr']))
+            current_point = indicator_data.loc[self.price_iterator.current_indices['5min']-1, 'atr']
+            dpg.configure_item('ind_curve_series_tag', x=list(indicator_data.index), y=list(indicator_data['atr']), label=current_point)
             dpg.set_axis_limits('ind_curve_x_axis', x_min, x_max) 
             dpg.set_axis_limits('ind_curve_y_axis', y_min, y_max)  
             dpg.set_value('current_time_ind_vline_tag_2', [[self.price_iterator.current_indices['5min']]])
@@ -167,7 +169,6 @@ class ChartsApp:
        
         # if self.ind_window_open and self.ind_curve_plot is not None:
         #     dpg.configure_item('ind_curve_series_tag', x=list(ind_data.index), y=list(ind_data.values))
-
 
     def create_controls_window(self):
         with dpg.window(label="Controls", no_close=True, collapsed=True):
@@ -285,6 +286,8 @@ class ChartsApp:
 
         for window in loaded_config['windows']:
             self.create_chart_window(None, None, timeframe=window['timeframe']) 
+
+        self.open_ind_window()
 
         self.open_equity_curve_window()
 

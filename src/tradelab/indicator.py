@@ -15,7 +15,6 @@ class ValueBasedIndicators:
         self.data['DateTime'] = self.data_iterator.data[self.timeframe]['DateTime'].copy()
         price_data = self.data_iterator.data[self.timeframe].copy()
         result = price_data.groupby(price_data['DateTime'].dt.date).apply(self.indicator).reset_index(level=0, drop=True)    
-        print('hello>', result)    
         self.data[self.column_names] = result.reset_index(level=0, drop=True)
 
         self.update()
@@ -25,13 +24,7 @@ class ValueBasedIndicators:
             self.current_update_index = self.data_iterator.current_indices[self.timeframe]
             if self.current_update_index >= self.period:
                 price_data = self.data_iterator.simulation_data[self.timeframe].iloc[self.current_update_index-self.period:self.current_update_index+1, :].copy()
-                
-                print('1', price_data.groupby(price_data['DateTime'].dt.date).apply(self.indicator))
                 result = price_data.groupby(price_data['DateTime'].dt.date).apply(self.indicator).reset_index(level=0, drop=True) 
-                
-                print('3',result)
-                
-                
                 self.data.loc[self.current_update_index, self.column_names] = result.loc[self.current_update_index, self.column_names]
             
 

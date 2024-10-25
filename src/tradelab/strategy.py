@@ -1,8 +1,9 @@
 
 class Strategy:
-    def __init__(self, data_iterator, broker):
+    def __init__(self, data_iterator, broker, indicator_manager):
         self.data_iterator = data_iterator
         self.broker = broker
+        self.indicator_manager = indicator_manager
         self.CumulateOrders = False
         self.TradeIntraday = False
         self.step = 0

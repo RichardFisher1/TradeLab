@@ -3,10 +3,11 @@ from utils.helper_functions import get_class_names_from_file
 import importlib
 
 class StrategyManager:
-    def __init__(self, price_iterator, broker):
+    def __init__(self, price_iterator, broker, indicator_manager):
         self.file_path = "workspace/my_strategies.py"
         self.broker = broker
         self.price_iterator = price_iterator
+        self.indicator_manager = indicator_manager
         self.last_modified_time = None
         self.available_strategies = {}
         self.active_strategy = {}
@@ -40,7 +41,7 @@ class StrategyManager:
     
     def activate_strategy(self, strategy_name):
 
-        cls = self.available_strategies[strategy_name](self.price_iterator, self.broker)            
+        cls = self.available_strategies[strategy_name](self.price_iterator, self.broker, self.indicator_manager)            
         self.active_strategy[strategy_name] = {
                 'strategy': cls,    
             }
