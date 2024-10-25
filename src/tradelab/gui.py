@@ -12,9 +12,6 @@ import pandas as pd
 import time
 from datetime import datetime, timedelta
 
-
-
-
 class ChartsApp:
     def __init__(self, data):
         self.current_time = datetime.now()
@@ -31,9 +28,9 @@ class ChartsApp:
         
         self.backtest_switch = False
         self.start_switch = False
-        self.print_switch = False
         self.closed_trades_window_open = False
         self.equity_curve_window_open = False
+        self.ind_window_open = False
         
         self.previous_data = pd.DataFrame()
         self.current_data = pd.DataFrame()
@@ -104,10 +101,74 @@ class ChartsApp:
                     callback=self.toggle_equity_curve_window,
                     tag='equity_curve_checkbox_tag'
                 )
+            with dpg.menu(label="Ind Curve"):
+                dpg.add_checkbox(
+                    label='Ind Curve', 
+                    callback=self.toggle_ind_window,
+                    tag='ind_checkbox_tag'
+                )
 
             dpg.add_separator() 
             dpg.add_text(f"Time: {self.price_iterator.current_time}", tag="current_time_text")
     
+
+    def toggle_ind_window(self, sender, app_data):
+        if app_data:  # Checkbox checked
+            self.open_ind_window()
+        else:  # Checkbox unchecked
+            self.close_ind_window()
+
+    def open_ind_window(self):
+        if not self.ind_window_open:
+            with dpg.window(label="Ind Curve", tag='ind_curve_window_tag', on_close=self.close_ind_window):
+                # Create a plot for the ind curve
+                with dpg.plot(label="Ind Curve", height=-1, width=-1):
+                    dpg.add_plot_legend()
+                    # REQUIRED: create x and y axes
+                    dpg.add_plot_axis(dpg.mvXAxis, label="x", tag='ind_curve_x_axis')
+                    dpg.add_plot_axis(dpg.mvYAxis, label="y", tag='ind_curve_y_axis')
+
+                    self.indicator_manager.create_indicator('atr', '5min')
+                    indicator_data = self.indicator_manager.active_indicators['atr', '5min']['indicator'].data    
+                    
+                    x_min = min(indicator_data.index)
+                    x_max = max(indicator_data.index)
+                    y_min = indicator_data['atr'].dropna().min()
+                    y_max = indicator_data['atr'].dropna().max() + 5
+                    
+                    self.ind_curve_plot = dpg.add_line_series(x=list(indicator_data.index),y=list(indicator_data['atr']) , parent='ind_curve_y_axis', tag='ind_curve_series_tag')
+                    dpg.set_axis_limits('ind_curve_x_axis', x_min, x_max) 
+                    dpg.set_axis_limits('ind_curve_y_axis', y_min, y_max)  
+                    dpg.add_vline_series([self.price_iterator.current_indices['5min']], parent='ind_curve_x_axis', tag='current_time_ind_vline_tag_2')
+
+            self.ind_window_open = True
+
+    def close_ind_window(self):
+        if self.ind_window_open:
+            dpg.delete_item('ind_curve_window_tag')  # Close the window
+            self.ind_window_open = False
+
+        dpg.set_value('ind_checkbox_tag', False)
+
+    def update_ind_curve_window(self):
+        if self.ind_curve_plot:
+            indicator_data = self.indicator_manager.active_indicators['atr', '5min']['indicator'].data    
+                        
+            x_min = min(indicator_data.index)
+            x_max = max(indicator_data.index)
+            y_min = indicator_data['atr'].dropna().min()
+            y_max = indicator_data['atr'].dropna().max() + 5
+
+            dpg.configure_item('ind_curve_series_tag', x=list(indicator_data.index), y=list(indicator_data['atr']))
+            dpg.set_axis_limits('ind_curve_x_axis', x_min, x_max) 
+            dpg.set_axis_limits('ind_curve_y_axis', y_min, y_max)  
+            dpg.set_value('current_time_ind_vline_tag_2', [[self.price_iterator.current_indices['5min']]])
+
+       
+        # if self.ind_window_open and self.ind_curve_plot is not None:
+        #     dpg.configure_item('ind_curve_series_tag', x=list(ind_data.index), y=list(ind_data.values))
+
+
     def create_controls_window(self):
         with dpg.window(label="Controls", no_close=True, collapsed=True):
             dpg.add_slider_float(label="Speed", default_value=0.5, max_value=1, min_value=0, callback=self.update_speed)
@@ -266,12 +327,15 @@ class ChartsApp:
                 window.update_candle_serie_plots()
                 window.update_current_time_vline()
                 window.update_indicator_plots()
-                window.update_trading_signals_plots(self.backtest.broker.entry_signals, self.backtest.broker.exit_signals)
+                if self.backtest_switch == True:
+                    window.update_trading_signals_plots(self.backtest.broker.entry_signals, self.backtest.broker.exit_signals)
 
         if self.closed_trades_window_open:
             self.update_closed_trades_window()
         if self.equity_curve_window_open:
             self.update_equity_curve_window()
+        if self.ind_window_open:
+            self.update_ind_curve_window()
               
     def change_increment(self, sender, timeframe):
         previous_time = self.price_iterator.current_time
@@ -340,8 +404,6 @@ class ChartsApp:
             
             if self.start_switch is True:
                 self.next_iteration()
-                if self.print_switch == True:
-                    self.print()
             
             self.update_displayed_time()
             

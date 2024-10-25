@@ -1,5 +1,7 @@
 from tradelab.indicator import ValueBasedIndicators
 import pandas as pd
+import pandas_ta as ta
+import numpy as np
 
 class mav(ValueBasedIndicators):
     def __init__(self, data_iterator, timeframe):
@@ -18,8 +20,20 @@ class channel(ValueBasedIndicators):
         lower = data['Close'].shift(1).rolling(window=3).mean()
         return pd.DataFrame({'upper': upper, 'lower': lower})
 
-
+class atr(ValueBasedIndicators):
+    def __init__(self, data_iterator, timeframe, period=3):
+        super().__init__(data_iterator, timeframe, period=period, column_names=['atr'])
+        self.period = period
     
+    def indicator(self, data):
+        atr_values = ta.atr(high=data['High'], low=data['Low'], close=data['Close'], length=self.period)
+        if atr_values is None or len(atr_values) == 0:
+            atr_df = pd.DataFrame({'atr': np.nan}, index=data.index)        
+        else:
+            atr_df = pd.DataFrame({'atr': atr_values}, index=data.index)
+        return atr_df
+
+
 
 
 

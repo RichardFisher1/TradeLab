@@ -106,7 +106,6 @@ class Broker:
 
         # print(self.equity_signals['5min'])
         # print(self.equity_signals['5min']['profit'].sum())
-            print(self.equity_signals['5min']['cumulative_profit'])
         
         
         # print(self.closed_trades.loc[0, 'indices']['5min'])
